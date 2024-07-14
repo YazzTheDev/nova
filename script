@@ -1,0 +1,233 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- Flux UI Library
+local Flux = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/fluxlib.txt")()
+
+-- Configuration and Settings
+local CIRCLE_RADIUS = 100
+local CIRCLE_COLOR = Color3.new(1, 1, 1)
+local LINE_COLOR = Color3.new(1, 1, 1)
+local MAX_DISTANCE = 1000
+
+-- Settings (we'll control these through the UI)
+local WALL_CHECK = true
+local TEAM_CHECK = true
+local SMOOTHNESS = 0.5
+
+-- Drawing objects
+local circle
+local line
+
+-- RenderStepped connection
+local renderSteppedConnection
+
+-- Create Window
+local win = Flux:Window("Nova by Yazz", "Press RightControl to toggle", Color3.fromRGB(255, 110, 48), Enum.KeyCode.RightControl)
+
+-- Main Tab
+local tab = win:Tab("Aimbot", "http://www.roblox.com/asset/?id=6023426915")
+
+-- Toggle Wall Check
+tab:Toggle("Wall Check", "Enable/Disable wall check", WALL_CHECK, function(t)
+    WALL_CHECK = t
+end)
+
+-- Toggle Team Check
+tab:Toggle("Team Check", "Enable/Disable team check", TEAM_CHECK, function(t)
+    TEAM_CHECK = t
+end)
+
+-- Slider for Smoothness
+tab:Slider("Smoothness", "Adjust aim smoothness (0 = snap, 1 = very smooth)", 0, 100, 50, function(t)
+    SMOOTHNESS = t / 100
+end)
+
+-- Slider for Circle Radius
+tab:Slider("Circle Radius", "Adjust circle radius", 50, 300, CIRCLE_RADIUS, function(t)
+    CIRCLE_RADIUS = t
+    if circle then
+        circle.Radius = t
+    end
+end)
+
+-- Color Picker for Circle
+tab:Colorpicker("Circle Color", Color3.fromRGB(255, 255, 255), function(t)
+    CIRCLE_COLOR = t
+    if circle then
+        circle.Color = t
+    end
+end)
+
+-- Color Picker for Line
+tab:Colorpicker("Line Color", Color3.fromRGB(255, 255, 255), function(t)
+    LINE_COLOR = t
+end)
+
+-- Button to Reset Settings
+tab:Button("Reset Settings", "Reset all settings to default", function()
+    WALL_CHECK = true
+    TEAM_CHECK = true
+    SMOOTHNESS = 0.5
+    CIRCLE_RADIUS = 100
+    CIRCLE_COLOR = Color3.new(1, 1, 1)
+    LINE_COLOR = Color3.new(1, 1, 1)
+    
+    -- Update UI elements
+    tab:UpdateToggle("Wall Check", true)
+    tab:UpdateToggle("Team Check", true)
+    tab:UpdateSlider("Smoothness", 50)
+    tab:UpdateSlider("Circle Radius", 100)
+    
+    -- Update drawings
+    if circle then
+        circle.Radius = CIRCLE_RADIUS
+        circle.Color = CIRCLE_COLOR
+    end
+end)
+
+-- Function to detach script and destroy all elements
+local function detachScript()
+    if renderSteppedConnection then
+        renderSteppedConnection:Disconnect()
+    end
+    
+    if circle then circle:Remove() end
+    if line then line:Remove() end
+    
+    if win then win:Destroy() end
+    
+    circle = nil
+    line = nil
+    win = nil
+    
+    print("Script detached and elements destroyed.")
+end
+
+-- Button to Detach Script
+tab:Button("Detach Script", "Destroy all elements and detach script", detachScript)
+
+-- ESP Tab
+local espTab = win:Tab("ESP", "http://www.roblox.com/asset/?id=6023426915")
+
+-- Function to create a new ESP button
+local function createESPButton(name, url)
+    espTab:Button(name, "Run " .. name .. " ESP script", function()
+        loadstring(game:HttpGet(url))()
+    end)
+end
+
+-- Add ESP buttons
+createESPButton("Player Radar", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/PlayerRadar.lua")
+createESPButton("Arrows ESP", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/Arrows.lua")
+createESPButton("Skeleton ESP", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/SkeletonESP.lua")
+createESPButton("Corner 2D Box ESP", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/Corner%202D%20Box%20ESP.lua")
+
+-- Rest of your existing code...
+
+local function createDrawings()
+    if circle then circle:Remove() end
+    if line then line:Remove() end
+
+    circle = Drawing.new("Circle")
+    circle.Visible = true
+    circle.Color = CIRCLE_COLOR
+    circle.Thickness = 1
+    circle.NumSides = 64
+    circle.Radius = CIRCLE_RADIUS
+    circle.Filled = false
+    circle.Transparency = 1
+
+    line = Drawing.new("Line")
+    line.Visible = false
+    line.Thickness = 2
+    line.Transparency = 1
+    line.Color = LINE_COLOR
+end
+
+local function isPlayerBehindWall(targetPosition)
+    if not WALL_CHECK then return false end
+    local ray = Ray.new(Camera.CFrame.Position, targetPosition - Camera.CFrame.Position)
+    local part, position = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character})
+    return part and (position - targetPosition).Magnitude > 5
+end
+
+local function isTeamCheck(player)
+    if not TEAM_CHECK then return true end
+    return player.Team ~= LocalPlayer.Team
+end
+
+local function getPlayerTeamColor(player)
+    if player.Team then
+        return player.Team.TeamColor.Color
+    else
+        return LINE_COLOR
+    end
+end
+
+local function updateDrawings()
+    local mousePosition = UserInputService:GetMouseLocation()
+    circle.Position = mousePosition
+
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    local closestHead = nil
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local headPosition, onScreen = Camera:WorldToViewportPoint(head.Position)
+
+            if onScreen and isTeamCheck(player) then
+                local distance = (Vector2.new(headPosition.X, headPosition.Y) - mousePosition).Magnitude
+
+                if distance <= CIRCLE_RADIUS and distance < closestDistance and not isPlayerBehindWall(head.Position) then
+                    closestPlayer = player
+                    closestDistance = distance
+                    closestHead = head
+                end
+            end
+        end
+    end
+
+    if closestPlayer and closestHead then
+        local headPosition = Camera:WorldToViewportPoint(closestHead.Position)
+        line.From = mousePosition
+        line.To = Vector2.new(headPosition.X, headPosition.Y)
+        line.Color = LINE_COLOR
+        line.Visible = true
+
+        if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, closestHead.Position)
+            local smoothFactor = 1 - SMOOTHNESS
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
+        end
+    else
+        line.Visible = false
+    end
+end
+
+local function onCharacterAdded(character)
+    if renderSteppedConnection then
+        renderSteppedConnection:Disconnect()
+    end
+
+    createDrawings()
+    renderSteppedConnection = RunService.RenderStepped:Connect(updateDrawings)
+end
+
+createDrawings()
+LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+if LocalPlayer.Character then
+    onCharacterAdded(LocalPlayer.Character)
+end
+
+game:BindToClose(function()
+    detachScript()
+end)
