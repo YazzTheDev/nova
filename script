@@ -1,7 +1,8 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local CIRCLE_RADIUS = 1local UserInputService = game:GetService("UserInputService")
+local CIRCLE_RADIUS = 100
+local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
