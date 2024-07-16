@@ -1,17 +1,14 @@
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-
-local CIRCLE_RADIUS = 100
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- Flux UI Library
-local Flux = loadstring(game:HttpGet"https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/fluxlib.txt")()
-
--- Configuration and Settings00
+-- Configuration and Settings
+local CIRCLE_RADIUS = 100
 local CIRCLE_COLOR = Color3.new(1, 1, 1)
 local LINE_COLOR = Color3.new(1, 1, 1)
 local MAX_DISTANCE = 1000
@@ -29,68 +26,126 @@ local line
 local renderSteppedConnection
 
 -- Create Window
-local win = Flux:Window("Universal Aimbot", "Press RightControl to toggle - By Yazz", Color3.fromRGB(255, 110, 48), Enum.KeyCode.RightControl)
+local Window = OrionLib:MakeWindow({Name = "Nova", HidePremium = false, SaveConfig = true, ConfigFolder = "NovaConfigs"})
 
 -- Main Tab
-local tab = win:Tab("Aimbot", "http://www.roblox.com/asset/?id=6023426915")
-
+local MainTab = Window:MakeTab({
+    Name = "Aimbot",
+    Icon = "rbxassetid://4483345998",
+    
+    PremiumOnly = false
+})
+MainTab:AddLabel("Join our discord: discord.gg/2rvTcCuqvJ")
 -- Toggle Wall Check
-tab:Toggle("Wall Check", "Enable/Disable wall check", WALL_CHECK, function(t)
-    WALL_CHECK = t
-end)
+MainTab:AddToggle({
+    Name = "Wall Check",
+    Default = WALL_CHECK,
+    Save = true,
+    Color = Color3.fromRGB(94,197,216),
+    Flag = "wallCheck",
+    Callback = function(Value)
+        WALL_CHECK = Value
+    end    
+})
 
 -- Toggle Team Check
-tab:Toggle("Team Check", "Enable/Disable team check", TEAM_CHECK, function(t)
-    TEAM_CHECK = t
-end)
+MainTab:AddToggle({
+    Name = "Team Check",
+    Default = TEAM_CHECK,
+    Save = true,
+    Color = Color3.fromRGB(94,197,216),
+    Flag = "teamCheck",
+    Callback = function(Value)
+        TEAM_CHECK = Value
+    end    
+})
 
 -- Slider for Smoothness
-tab:Slider("Smoothness", "Adjust aim smoothness (0 = snap, 1 = very smooth)", 0, 100, 50, function(t)
-    SMOOTHNESS = t / 100
-end)
+MainTab:AddSlider({
+    Name = "Smoothness",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(94,197,216),
+    Increment = 1,
+    ValueName = "%",
+    Save = true,
+    Flag = "smoothness",
+    Callback = function(Value)
+        SMOOTHNESS = Value / 100
+    end    
+})
 
 -- Slider for Circle Radius
-tab:Slider("Circle Radius", "Adjust circle radius", 50, 300, CIRCLE_RADIUS, function(t)
-    CIRCLE_RADIUS = t
-    if circle then
-        circle.Radius = t
-    end
-end)
+MainTab:AddSlider({
+    Name = "Circle Radius",
+    Min = 50,
+    Max = 300,
+    Default = CIRCLE_RADIUS,
+    Color = Color3.fromRGB(94,197,216),
+    Increment = 1,
+    ValueName = "",
+    Save = true,
+    Flag = "circleRadius",
+    Callback = function(Value)
+        CIRCLE_RADIUS = Value
+        if circle then
+            circle.Radius = Value
+        end
+    end    
+})
 
 -- Color Picker for Circle
-tab:Colorpicker("Circle Color", Color3.fromRGB(255, 255, 255), function(t)
-    CIRCLE_COLOR = t
-    if circle then
-        circle.Color = t
-    end
-end)
+MainTab:AddColorpicker({
+    Name = "Circle Color",
+    Default = CIRCLE_COLOR,
+    Save = true,
+    Flag = "circleColor",
+    Callback = function(Value)
+        CIRCLE_COLOR = Value
+        if circle then
+            circle.Color = Value
+        end
+    end  
+})
 
 -- Color Picker for Line
-tab:Colorpicker("Line Color", Color3.fromRGB(255, 255, 255), function(t)
-    LINE_COLOR = t
-end)
+MainTab:AddColorpicker({
+    Name = "Line Color",
+    Default = LINE_COLOR,
+    Save = true,
+    Flag = "lineColor",
+    Callback = function(Value)
+        LINE_COLOR = Value
+    end  
+})
 
 -- Button to Reset Settings
-tab:Button("Reset Settings", "Reset all settings to default", function()
-    WALL_CHECK = true
-    TEAM_CHECK = true
-    SMOOTHNESS = 0.5
-    CIRCLE_RADIUS = 100
-    CIRCLE_COLOR = Color3.new(1, 1, 1)
-    LINE_COLOR = Color3.new(1, 1, 1)
-    
-    -- Update UI elements
-    tab:UpdateToggle("Wall Check", true)
-    tab:UpdateToggle("Team Check", true)
-    tab:UpdateSlider("Smoothness", 50)
-    tab:UpdateSlider("Circle Radius", 100)
-    
-    -- Update drawings
-    if circle then
-        circle.Radius = CIRCLE_RADIUS
-        circle.Color = CIRCLE_COLOR
-    end
-end)
+MainTab:AddButton({
+    Name = "Reset Settings",
+    Callback = function()
+        WALL_CHECK = true
+        TEAM_CHECK = true
+        SMOOTHNESS = 0.5
+        CIRCLE_RADIUS = 100
+        CIRCLE_COLOR = Color3.new(1, 1, 1)
+        LINE_COLOR = Color3.new(1, 1, 1)
+        
+        -- Update UI elements
+        OrionLib:SetToggle("wallCheck", true)
+        OrionLib:SetToggle("teamCheck", true)
+        OrionLib:SetSlider("smoothness", 50)
+        OrionLib:SetSlider("circleRadius", 100)
+        OrionLib:SetColor("circleColor", Color3.new(1, 1, 1))
+        OrionLib:SetColor("lineColor", Color3.new(1, 1, 1))
+        
+        -- Update drawings
+        if circle then
+            circle.Radius = CIRCLE_RADIUS
+            circle.Color = CIRCLE_COLOR
+        end
+    end    
+})
 
 -- Function to detach script and destroy all elements
 local function detachScript()
@@ -101,36 +156,64 @@ local function detachScript()
     if circle then circle:Remove() end
     if line then line:Remove() end
     
-    if win then win:Destroy() end
+    OrionLib:Destroy()
     
     circle = nil
     line = nil
-    win = nil
     
     print("Script detached and elements destroyed.")
 end
 
 -- Button to Detach Script
-tab:Button("Detach Script", "Destroy all elements and detach script", detachScript)
+MainTab:AddButton({
+    Name = "Detach Script",
+    Callback = function()
+        detachScript()
+    end    
+})
 
 -- ESP Tab
-local espTab = win:Tab("ESP", "http://www.roblox.com/asset/?id=6023426915")
+-- ESP Tab
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- Function to create a new ESP button
-local function createESPButton(name, url)
-    espTab:Button(name, "Run " .. name .. " ESP script", function()
-        loadstring(game:HttpGet(url))()
-    end)
-end
+-- Player Radar
+ESPTab:AddButton({
+    Name = "Player Radar",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/PlayerRadar.lua"))()
 
--- Add ESP buttons
-createESPButton("Player Radar", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/PlayerRadar.lua")
-createESPButton("Arrows ESP", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/Arrows.lua")
-createESPButton("Skeleton ESP", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/SkeletonESP.lua")
-createESPButton("Corner 2D Box ESP", "https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/Corner%202D%20Box%20ESP.lua")
+    end    
+})
 
--- Rest of your existing code...
+-- Arrows ESP
+ESPTab:AddButton({
+    Name = "Arrows ESP",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/Arrows.lua"))()
 
+    end    
+})
+
+-- Skeleton ESP
+ESPTab:AddButton({
+    Name = "Skeleton ESP",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/SkeletonESP.lua"))()
+    end    
+})
+
+-- Corner 2D Box ESP
+ESPTab:AddButton({
+    Name = "Corner 2D Box ESP",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/YazzTheDev/yazzesesp/main/Corner%202D%20Box%20ESP.lua"))()
+
+    end    
+})
 local function createDrawings()
     if circle then circle:Remove() end
     if line then line:Remove() end
@@ -232,3 +315,5 @@ end
 game:BindToClose(function()
     detachScript()
 end)
+
+OrionLib:Init()
